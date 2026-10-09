@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cinephile — Your Personal Movie Curator</title>
+<style>
+:root {
+  --bg: #070d14; --panel: #0b131d; --panel-2: #101b28; --line: #233448;
+  --text: #edf3ff; --muted: #9baec7; --accent: #e45460; --accent-dark: #54242e;
+  --gold: #ffd05c; --radius: 18px;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.5 Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+button, input, textarea, select { font: inherit; }
+button { cursor: pointer; color: inherit; }
+button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.app { display: grid; grid-template-columns: 250px minmax(0, 1fr); min-height: 100vh; }
+.sidebar { position: sticky; top: 0; height: 100vh; display: flex; flex-direction: column; padding: 24px 15px 16px; border-right: 1px solid var(--line); background: linear-gradient(180deg,#0a111b 0%,#0a111b 65%,#20131a 100%); overflow: auto; }
+.brand { display:flex; align-items:center; gap:10px; padding:0 10px 28px; }
+.brand-mark { width:42px;height:42px;display:grid;place-items:center;border-radius:50%;background:var(--accent);font-size:25px;color:white;box-shadow:0 0 24px #e4546030; }
+.brand strong { display:block;font-size:22px;letter-spacing:-.7px; }
+.brand small { display:block;color:var(--muted);font-size:10px; }
+.nav { display:grid; gap:7px; }
+.nav button { display:flex; align-items:center; gap:14px; width:100%; padding:12px 14px; border:1px solid transparent; border-radius:11px; text-align:left; background:transparent; color:#d5e0ef; }
+.nav button .ico { width:20px;text-align:center;font-size:19px; }
+.nav button:hover { background:#14202d; }
+.nav button.active { background:linear-gradient(100deg,#702d38,#47232b);border-color:#79343f;color:white; }
+.sidebar-spacer { flex:1; min-height:22px; }
+.profile { display:flex;align-items:center;gap:11px;padding:12px;border:1px solid var(--line);border-radius:14px;background:#0d1722; }
+.avatar { width:38px;height:38px;border-radius:50%;display:grid;place-items:center;background:#702d38;border:1px solid #b74a59;font-size:18px; }
+.profile strong,.profile small { display:block; }.profile small { color:var(--muted);font-size:11px; }
+.mobile-top { display:none; }
+.main { min-width:0; padding:24px; display:grid; grid-template-columns:minmax(0,1fr) 310px; gap:16px; align-items:start; }
+.center { min-width:0; display:flex; flex-direction:column; gap:14px; }
+.welcome,.chat-panel,.detail-panel,.page-panel { border:1px solid #172838; background:linear-gradient(145deg,#0b131d,#080f17); border-radius:var(--radius); }
+.welcome { padding:22px 26px; }
+.welcome h1 { margin:0 0 4px;font-size:25px;letter-spacing:-.5px; }
+.welcome p { margin:0;color:#b5c6dc;font-size:14px; }
+.chips { display:flex;gap:9px;flex-wrap:wrap;margin-top:17px; }
+.chip { border:1px solid #30445a;background:#0b121c;border-radius:999px;padding:9px 14px;color:#d8e3f3;font-size:12px; }
+.chip:hover { border-color:var(--accent);background:#21151d; }
+.chat-panel { min-height:calc(100vh - 230px); padding:18px 19px 14px; display:flex; flex-direction:column; }
+.messages { flex:1;display:flex;flex-direction:column;gap:18px; }
+.message { max-width:100%; }
+.user-message { align-self:flex-end;max-width:80%;background:#38202b;border:1px solid #502b39;border-radius:15px 15px 4px 15px;padding:11px 15px;white-space:pre-wrap; }
+.assistant-message { display:flex;align-items:flex-start;gap:12px; }
+.assistant-avatar { flex:0 0 36px;width:36px;height:36px;border-radius:50%;display:grid;place-items:center;background:#172331;border:1px solid var(--accent);color:var(--accent);font-size:21px; }
+.assistant-copy { min-width:0;max-width:100%;color:#e0e8f5; }
+.assistant-copy p { margin:4px 0 12px; }
+.recommendations { display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:9px;margin:14px 0 10px; }
+.movie-card { min-width:0;display:flex;flex-direction:column;padding:9px;border:1px solid #273a4c;border-radius:13px;background:#0d1722; }
+.poster { aspect-ratio:1.18 / 1; width:100%;object-fit:cover;border-radius:8px;background:#192636; }
+.poster-fallback { aspect-ratio:1.18 / 1;display:grid;place-items:center;border-radius:8px;background:linear-gradient(135deg,#1d3044,#522b3a);font-size:35px;color:#c9d8ed; }
+.movie-card h3 { font-size:14px;margin:8px 0 2px;line-height:1.25; }
+.meta { font-size:11px;color:var(--muted); }
+.genres { font-size:11px;color:#b8c7dc;margin:5px 0; }
+.rating { color:var(--gold);font-size:12px;margin:3px 0 7px; }
+.overview { font-size:11px;color:#c2d0e2;line-height:1.45;margin:0 0 8px; }
+.why { font-size:11px;color:#8fa5bf;line-height:1.4;margin:0 0 10px; }
+.card-actions { display:flex;gap:5px;margin-top:auto;padding-top:7px; }
+.small-btn { flex:1;min-width:0;padding:7px 5px;border:1px solid #30445a;background:#0a121c;border-radius:9px;font-size:10px;white-space:nowrap; }
+.small-btn:hover { border-color:var(--accent); }
+.small-btn.saved { background:#3c202a;border-color:#8e3a49; }
+.composer { margin-top:18px;border:1px solid #3b4b5e;background:#0c151f;border-radius:17px;padding:8px; }
+.composer-row { display:flex;align-items:flex-end;gap:8px; }
+.composer textarea { flex:1;resize:vertical;min-height:43px;max-height:150px;padding:11px 10px;color:var(--text);background:transparent;border:0;outline:none; }
+.send-btn { width:39px;height:39px;border:0;border-radius:50%;background:var(--accent);font-size:19px; }
+.send-btn:hover { background:#f36c77; }
+.composer-tools { display:flex;gap:7px;flex-wrap:wrap;padding:4px 5px 2px; }
+.tool-btn { border:1px solid #1d2c3b;background:#101b27;color:#bdcbe0;border-radius:999px;padding:6px 10px;font-size:11px; }
+.tool-btn:hover { border-color:#52677e; }
+.composer-foot { display:flex;justify-content:space-between;color:#71849d;font-size:10px;padding:4px 8px 0; }
+.detail-panel { padding:13px;position:sticky;top:20px;max-height:calc(100vh - 40px);overflow:auto; }
+.detail-hero { width:100%;aspect-ratio:16/9;object-fit:cover;border-radius:10px;background:#192635; }
+.detail-panel h2 { margin:9px 0 2px;font-size:20px; }
+.detail-meta { color:#bdcce0;font-size:11px; }
+.pills { display:flex;gap:6px;flex-wrap:wrap;margin:11px 0; }
+.pill { border:1px solid #293b4d;background:#121e2b;border-radius:999px;padding:4px 9px;font-size:11px;color:#d3deed; }
+.detail-rating { color:var(--gold);margin:10px 0; }
+.detail-panel p { color:#cad5e4;font-size:12px;line-height:1.6; }
+.detail-panel h3 { font-size:13px;margin:15px 0 3px; }
+.primary-btn,.secondary-btn { width:100%;padding:10px 12px;border-radius:11px;margin-top:8px; }
+.primary-btn { background:linear-gradient(100deg,#71303b,#4c232c);border:1px solid #75343e; }
+.secondary-btn { background:#0d1722;border:1px solid #304257; }
+.primary-btn:hover,.secondary-btn:hover { filter:brightness(1.18); }
+.similar-list { display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px;margin-top:10px; }
+.similar-item { cursor:pointer;min-width:0; }
+.similar-item img { width:100%;aspect-ratio:2/3;object-fit:cover;border-radius:8px;border:1px solid #293b4d;background:#172332; }
+.similar-item strong { display:block;font-size:10px;margin-top:4px; }
+.similar-item small { color:var(--muted);font-size:10px; }
+.page-panel { padding:22px;min-height:60vh; }
+.page-panel h1 { margin-top:0; }
+.page-intro { color:var(--muted);margin-top:-8px; }
+.page-grid { display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:13px; }
+.page-grid .movie-card { min-height:100%; }
+.empty { padding:35px 15px;text-align:center;color:var(--muted);border:1px dashed #304257;border-radius:14px; }
+.toast { position:fixed;bottom:20px;right:20px;z-index:100;background:#142331;border:1px solid #3b5368;border-radius:12px;padding:12px 16px;box-shadow:0 12px 35px #0008;max-width:min(380px,90vw); }
+.hidden { display:none!important; }
+.modal-backdrop { position:fixed;inset:0;background:#000b;z-index:50;display:grid;place-items:center;padding:20px; }
+.modal { width:min(500px,100%);background:#0c1621;border:1px solid #304257;border-radius:18px;padding:20px; }
+.modal-head { display:flex;justify-content:space-between;align-items:center;gap:12px; }
+.modal-head h2 { margin:0; }.icon-btn { background:transparent;border:1px solid #304257;border-radius:9px;padding:5px 10px; }
+.modal input,.modal textarea,.search-input { width:100%;margin-top:10px;background:#07101a;color:var(--text);border:1px solid #304257;border-radius:10px;padding:11px; }
+.search-row { display:flex;gap:8px;margin:15px 0; }.search-row .search-input { margin:0;flex:1;min-width:0; }
+.notice { color:var(--muted);font-size:12px; }
+@media(max-width:1200px) {
+  .main { grid-template-columns:minmax(0,1fr); }
+  .detail-panel { position:static;max-height:none; }
+  .detail-panel .similar-list { grid-template-columns:repeat(6,minmax(0,1fr)); }
+}
+@media(max-width:800px) {
+  .app { grid-template-columns:1fr; }
+  .sidebar { position:fixed;z-index:40;left:0;top:0;width:250px;transform:translateX(-105%);transition:transform .2s;box-shadow:20px 0 40px #0008; }
+  .sidebar.open { transform:translateX(0); }
+  .mobile-top { display:flex;align-items:center;gap:12px;padding:12px 16px;border-bottom:1px solid var(--line);background:#0a111b;position:sticky;top:0;z-index:20; }
+  .mobile-top button { background:#14202d;border:1px solid var(--line);border-radius:8px;padding:6px 10px; }
+  .main { padding:12px; }
+  .recommendations { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .chat-panel { min-height:65vh; }
+}
+@media(max-width:440px) {
+  .welcome { padding:18px; }.welcome h1 { font-size:21px; }
+  .recommendations { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .detail-panel .similar-list { grid-template-columns:repeat(3,minmax(0,1fr)); }
+  .user-message { max-width:95%; }
+}
+</style>
+</head>
+<body>
+<div class="mobile-top">
+  <button id="menuToggle" aria-label="Open navigation">☰</button>
+  <div class="brand-mark" style="width:32px;height:32px;font-size:19px">✿</div>
+  <strong>Cinephile</strong>
+</div>
+<div class="app">
+  <aside class="sidebar" id="sidebar">
+    <div class="brand"><div class="brand-mark">✿</div><div><strong>Cinephile</strong><small>Better movies. Deeper conversations.</small></div></div>
+    <nav class="nav" aria-label="Main navigation">
+      <button class="active" data-page="chat"><span class="ico">☏</span>New Chat</button>
+      <button data-page="discover"><span class="ico">⌕</span>Discover Movies</button>
+      <button data-page="favorites"><span class="ico">♡</span>Favorites</button>
+      <button data-page="watching"><span class="ico">♧</span>My Watching List</button>
+      <button data-page="reviews"><span class="ico">☆</span>My Reviews</button>
+      <button data-page="history"><span class="ico">◷</span>Chat History</button>
+      <button data-page="settings"><span class="ico">⚙</span>Settings</button>
+    </nav>
+    <div class="sidebar-spacer"></div>
+    <div class="profile"><div class="avatar">C</div><div><strong>Cinephile Guest</strong><small>Movie Enthusiast</small></div></div>
+  </aside>
+
+  <main class="main">
+    <section class="center" id="mainContent">
+      <header class="welcome" id="welcome">
+        <h1>Chat with Cinephile</h1>
+        <p>Tell me what you're in the mood for. I'll help you find something worth watching.</p>
+        <div class="chips">
+          <button class="chip" data-prompt="Recommend something like Dark">Recommend something like Dark</button>
+          <button class="chip" data-prompt="What are the best sci-fi movies?">Best sci-fi movies</button>
+          <button class="chip" data-prompt="Recommend some underrated gems">Underrated gems</button>
+          <button class="chip" data-prompt="What should I watch tonight?">What should I watch tonight?</button>
+        </div>
+      </header>
+      <section class="chat-panel" id="chatPanel">
+        <div class="messages" id="messages">
+          <div class="assistant-message">
+            <div class="assistant-avatar">✿</div>
+            <div class="assistant-copy"><p>Welcome to your personal cinema corner. Tell me what you love, what mood you're in, or name a film you can't stop thinking about. Let's find your next favorite.</p></div>
+          </div>
+        </div>
+        <form class="composer" id="chatForm">
+          <div class="composer-row">
+            <textarea id="messageInput" rows="1" maxlength="4000" placeholder="Ask for recommendations, show details, or anything about movies..." aria-label="Message Cinephile"></textarea>
+            <button class="send-btn" type="submit" aria-label="Send message">➤</button>
+          </div>
+          <div class="composer-tools">
+            <button class="tool-btn" type="button" id="searchToggle">⌕ Search titles</button>
+            <button class="tool-btn" type="button" id="uploadBtn">♧ Upload file</button>
+            <button class="tool-btn" type="button" id="voiceBtn">♩ Use voice</button>
+            <input id="fileInput" type="file" accept=".txt,.pdf,.doc,.docx" class="hidden">
+          </div>
+          <div class="composer-foot"><span id="statusText">Ready when you are</span><span><span id="charCount">0</span>/4000</span></div>
+        </form>
+      </section>
+    </section>
+
+    <aside class="detail-panel" id="detailPanel">
+      <img class="detail-hero" id="detailPoster" src="https://image.tmdb.org/t/p/w780/pPHpeI2X1qEd1CS1SeyrdhZ4qnT.jpg" alt="Featured show artwork" onerror="this.style.display='none'">
+      <h2 id="detailTitle">Severance</h2>
+      <div class="detail-meta" id="detailMeta">TV Show · 2022 · 1 Season</div>
+      <div class="pills" id="detailGenres"><span class="pill">Drama</span><span class="pill">Mystery</span><span class="pill">Sci-Fi</span></div>
+      <div class="detail-rating" id="detailRating">★ 8.7/10 <span class="detail-meta">(TMDB)</span></div>
+      <p id="detailOverview">Employees at a mysterious company undergo a procedure that separates their work and personal memories, leading to a dark and unsettling journey of self-discovery.</p>
+      <h3>Why it might be for you</h3>
+      <p id="detailWhy">Eerie atmosphere, careful world-building, and a slow-burn mystery make this a great pick if you like stories that leave you thinking.</p>
+      <button class="primary-btn" id="detailFavorite">♡ Save to Favorites</button>
+      <button class="secondary-btn" id="detailWatching">♧ Add to Watching List</button>
+      <hr style="border:0;border-top:1px solid #1d2c3b;margin:17px 0">
+      <div style="display:flex;justify-content:space-between;align-items:center"><strong>Similar Shows &amp; Movies</strong><button class="icon-btn" id="viewSimilar">View all</button></div>
+      <div class="similar-list" id="similarList">
+        <div class="similar-item" data-title="Dark"><img src="https://image.tmdb.org/t/p/w342/apbrbWs8M9lyOpJYU5WXrpFbk1Z.jpg" alt="Dark poster"><strong>Dark</strong><small>TV Show · 2017</small></div>
+        <div class="similar-item" data-title="The OA"><img src="https://image.tmdb.org/t/p/w342/r3Y0hK5Tz0WJ7wZy3W2d1x3F3z.jpg" alt="The OA poster"><strong>The OA</strong><small>TV Show · 2016</small></div>
+        <div class="similar-item" data-title="1899"><img src="https://image.tmdb.org/t/p/w342/9y5XK9sF7xZ8QX6M4K6x2d5q5q5.jpg" alt="1899 poster"><strong>1899</strong><small>TV Show · 2022</small></div>
+      </div>
+    </aside>
+  </main>
+</div>
+
+<div id="toast" class="toast hidden" role="status" aria-live="polite"></div>
+<div id="modalRoot"></div>
+<script>
+/*
+  Cinephile frontend.
+  Configure API_BASE to point at your LangGraph HTTP backend.
+  This UI can be previewed without a backend; local demo storage is used for library
+  features until API endpoints are configured. Chat requires a working /chat endpoint.
+*/
+const API_BASE = ""; // Example: "http://127.0.0.1:8000"
+const API = {
+  chat: "/chat",
+  search: "/search",
+  favorites: "/favorites",
+  watching: "/watching",
+  reviews: "/reviews",
+  similar: id => `/similar/${encodeURIComponent(id)}`,
+  history: "/history"
+};
+const TMDB_IMG = "https://image.tmdb.org/t/p/w500";
+const DEMO_MOVIES = [
+  {id:95396,title:"Severance",year:"2022",type:"TV Show",genres:["Drama","Mystery","Sci-Fi"],rating:8.7,poster:"https://image.tmdb.org/t/p/w500/pPHpeI2X1qEd1CS1SeyrdhZ4qnT.jpg",overview:"Employees at a mysterious company undergo a procedure that separates their work and personal memories, leading to a dark and unsettling journey of self-discovery.",why:"Eerie atmosphere, careful world-building, and a slow-burn mystery.",tmdb_id:95396},
+  {id:70523,title:"Dark",year:"2017",type:"TV Show",genres:["Mystery","Sci-Fi","Thriller"],rating:8.7,poster:"https://image.tmdb.org/t/p/w500/apbrbWs8M9lyOpJYU5WXrpFbk1Z.jpg",overview:"A missing child sets four families on a frantic hunt for answers, exposing a mystery that spans generations.",why:"Intricate timelines, existential questions, and a dense central mystery.",tmdb_id:70523},
+  {id:6357,title:"The OA",year:"2016",type:"TV Show",genres:["Drama","Mystery","Sci-Fi"],rating:7.8,poster:"https://image.tmdb.org/t/p/w500/r3Y0hK5Tz0WJ7wZy3W2d1x3F3z.jpg",overview:"A woman returns after years missing, bringing with her a story that challenges what others believe possible.",why:"An unusual mystery, alternate realities, and emotional ambiguity.",tmdb_id:6357},
+  {id:1920,title:"Twin Peaks",year:"1990",type:"TV Show",genres:["Mystery","Drama","Thriller"],rating:8.8,poster:"https://image.tmdb.org/t/p/w500/6QFqK5Vx7k8V5u6J9Z3Q2Q3Y.jpg",overview:"An investigation into a small town's secrets reveals a strange and unsettling world beneath the surface.",why:"Surreal atmosphere, eccentric characters, and dreamlike storytelling.",tmdb_id:1920},
+  {id:157336,title:"Interstellar",year:"2014",type:"Movie",genres:["Sci-Fi","Drama","Adventure"],rating:8.7,poster:"https://image.tmdb.org/t/p/w500/gEU2QniE6E77NI6lCU6MxlNBvIx.jpg",overview:"A team travels beyond familiar space in a desperate search for a future for humanity.",why:"A sweeping mix of cosmic scale, emotional stakes, and big scientific ideas.",tmdb_id:157336}
+];
+const $ = s => document.querySelector(s);
+const $$ = s => [...document.querySelectorAll(s)];
+const state = {
+  page:"chat", selected:DEMO_MOVIES[0], favorites:[], watching:[], reviews:[],
+  history:[], busy:false, backend:false, searchResults:[]
+};
+function loadLocal() {
+  try {
+    state.favorites = JSON.parse(localStorage.getItem("cinephile_favorites") || "[]");
+    state.watching = JSON.parse(localStorage.getItem("cinephile_watching") || "[]");
+    state.reviews = JSON.parse(localStorage.getItem("cinephile_reviews") || "[]");
+    state.history = JSON.parse(localStorage.getItem("cinephile_history") || "[]");
+  } catch(e) { console.warn("Local data could not be loaded", e); }
+}
+function saveLocal() {
+  localStorage.setItem("cinephile_favorites", JSON.stringify(state.favorites));
+  localStorage.setItem("cinephile_watching", JSON.stringify(state.watching));
+  localStorage.setItem("cinephile_reviews", JSON.stringify(state.reviews));
+  localStorage.setItem("cinephile_history", JSON.stringify(state.history));
+}
+function toast(message) {
+  const el = $("#toast"); el.textContent = message; el.classList.remove("hidden");
+  clearTimeout(toast.timer); toast.timer = setTimeout(() => el.classList.add("hidden"), 3000);
+}
+async function request(path, options={}) {
+  if (!API_BASE) throw new Error("Backend URL is not configured.");
+  const response = await fetch(API_BASE + path, {
+    ...options, headers: {"Content-Type":"application/json", ...(options.headers || {})}
+  });
+  if (!response.ok) throw new Error(`Backend returned ${response.status}`);
+  return response.status === 204 ? null : response.json();
+}
+function normalizeMovie(raw) {
+  return {
+    id: raw.id ?? raw.tmdb_id ?? raw.show_id,
+    tmdb_id: raw.tmdb_id ?? raw.show_id ?? raw.id,
+    title: raw.title ?? raw.name ?? "Untitled",
+    year: (raw.release_date ?? raw.first_air_date ?? raw.year ?? "").toString().slice(0,4),
+    type: raw.media_type === "tv" || raw.first_air_date ? "TV Show" : "Movie",
+    genres: Array.isArray(raw.genres) ? raw.genres.map(g => typeof g === "string" ? g : g.name) : [],
+    rating: raw.vote_average ?? raw.rating ?? null,
+    poster: raw.poster_path ? (raw.poster_path.startsWith("http") ? raw.poster_path : TMDB_IMG + raw.poster_path) : (raw.poster || ""),
+    overview: raw.overview ?? raw.comment ?? "",
+    why: raw.why ?? raw.reason ?? "",
+  };
+}
+function safeText(value="") { return String(value).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+function isSaved(list, movie) { return list.some(x => String(x.tmdb_id ?? x.id) === String(movie.tmdb_id ?? movie.id)); }
+async function mutateLibrary(kind, movie) {
+  const key = kind === "favorite" ? "favorites" : "watching";
+  const path = kind === "favorite" ? API.favorites : API.watching;
+  const fn = kind === "favorite" ? "addFavorite" : "addWatching";
+  const list = state[key];
+  if (isSaved(list, movie)) {
+    toast(`${movie.title} is already in your ${key === "favorites" ? "favorites" : "watching list"}.`);
+    return;
+  }
+  if (API_BASE) {
+    try {
+      const result = await request(path, {method:"POST", body:JSON.stringify({title:movie.title, tmdb_id:movie.tmdb_id ?? movie.id, show_id:movie.tmdb_id ?? movie.id})});
+      if (result && result.success === false) throw new Error(result.message || "The operation was not successful.");
+      list.unshift({...movie, ...result?.item});
+      saveLocal(); renderCurrentPage(); updateDetailButtons();
+      toast(`${movie.title} added to ${key === "favorites" ? "favorites" : "your watching list"}.`);
+      return;
+    } catch(e) { toast(`Could not save to backend: ${e.message}`); return; }
+  }
+  list.unshift({...movie, saved_at:new Date().toISOString()});
+  saveLocal(); renderCurrentPage(); updateDetailButtons();
+  toast(`${movie.title} saved locally. Connect your backend to sync it with SQLite.`);
+}
+function movieCard(movie, actions=true) {
+  const m = normalizeMovie(movie);
+  const poster = m.poster ? `<img class="poster" src="${safeText(m.poster)}" alt="${safeText(m.title)} poster" loading="lazy" onerror="this.outerHTML='<div class=&quot;poster-fallback&quot;>✦</div>'">` : `<div class="poster-fallback">✦</div>`;
+  return `<article class="movie-card" data-movie-id="${safeText(m.id)}">
+    ${poster}<h3>${safeText(m.title)}</h3>
+    <div class="meta">${safeText(m.type)}${m.year ? " · "+safeText(m.year):""}</div>
+    ${m.genres.length ? `<div class="genres">${safeText(m.genres.slice(0,3).join(" · "))}</div>`:""}
+    ${m.rating != null ? `<div class="rating">★ ${Number(m.rating).toFixed(1)}/10</div>`:""}
+    <p class="overview">${safeText(m.overview || "Open the title to explore its details.")}</p>
+    ${m.why ? `<p class="why">${safeText(m.why)}</p>`:""}
+    ${actions ? `<div class="card-actions">
+      <button class="small-btn ${isSaved(state.favorites,m)?"saved":""}" data-action="favorite" data-id="${safeText(m.id)}">${isSaved(state.favorites,m)?"♥ Saved":"♡ Save"}</button>
+      <button class="small-btn ${isSaved(state.watching,m)?"saved":""}" data-action="watching" data-id="${safeText(m.id)}">${isSaved(state.watching,m)?"✓ Added":"♧ Watchlist"}</button>
+    </div>`:""}
+    <button class="small-btn" style="margin-top:7px" data-action="details" data-id="${safeText(m.id)}">View details</button>
+  </article>`;
+}
+function allKnownMovies() {
+  const map = new Map();
+  [...DEMO_MOVIES,...state.favorites,...state.watching,...state.searchResults].forEach(raw => {
+    const m = normalizeMovie(raw); if (m.id != null) map.set(String(m.id),m);
+  });
+  return [...map.values()];
+}
+function updateDetailButtons() {
+  const m = state.selected;
+  $("#detailFavorite").textContent = isSaved(state.favorites,m) ? "♥ Saved to Favorites" : "♡ Save to Favorites";
+  $("#detailWatching").textContent = isSaved(state.watching,m) ? "✓ In Watching List" : "♧ Add to Watching List";
+}
+function setDetail(raw) {
+  const m = normalizeMovie(raw); state.selected = m;
+  $("#detailPoster").style.display = m.poster ? "block" : "none";
+  if (m.poster) $("#detailPoster").src = m.poster;
+  $("#detailPoster").alt = `${m.title} artwork`;
+  $("#detailTitle").textContent = m.title;
+  $("#detailMeta").textContent = [m.type,m.year].filter(Boolean).join(" · ");
+  $("#detailGenres").innerHTML = m.genres.map(g=>`<span class="pill">${safeText(g)}</span>`).join("") || '<span class="pill">Discover</span>';
+  $("#detailRating").innerHTML = m.rating != null ? `★ ${Number(m.rating).toFixed(1)}/10 <span class="detail-meta">(TMDB)</span>` : "Rating unavailable";
+  $("#detailOverview").textContent = m.overview || "No synopsis is available yet.";
+  $("#detailWhy").textContent = m.why || "Ask Cinephile to explain why this title might fit your taste.";
+  updateDetailButtons();
+}
+function addAssistantMessage(text, movies=[]) {
+  const wrap = document.createElement("div"); wrap.className="assistant-message";
+  const avatar=document.createElement("div");avatar.className="assistant-avatar";avatar.textContent="✿";
+  const copy=document.createElement("div");copy.className="assistant-copy";
+  const p=document.createElement("p");p.textContent=text;copy.appendChild(p);
+  if (movies.length) {
+    const grid=document.createElement("div");grid.className="recommendations";
+    grid.innerHTML=movies.map(m=>movieCard(m)).join("");copy.appendChild(grid);
+  }
+  wrap.append(avatar,copy);$("#messages").appendChild(wrap);scrollMessages();
+}
+function addUserMessage(text) {
+  const div=document.createElement("div");div.className="message user-message";div.textContent=text;
+  $("#messages").appendChild(div);scrollMessages();
+}
+function scrollMessages() { $("#chatPanel").scrollTop=$("#chatPanel").scrollHeight; }
+async function sendMessage(text) {
+  text=text.trim();if(!text||state.busy)return;
+  addUserMessage(text);$("#messageInput").value="";$("#charCount").textContent="0";
+  state.busy=true;$("#statusText").textContent="Cinephile is thinking…";
+  const wait=document.createElement("div");wait.className="assistant-message";wait.id="thinking";
+  wait.innerHTML='<div class="assistant-avatar">✿</div><div class="assistant-copy"><p>Thinking through the possibilities…</p></div>';
+  $("#messages").appendChild(wait);scrollMessages();
+  let answer="", movies=[];
+  try {
+    if (!API_BASE) {
+      await new Promise(r=>setTimeout(r,450));
+      answer="The chat backend isn't connected yet. Set API_BASE in index.html to your LangGraph HTTP server, then make sure its /chat endpoint accepts { message, conversation_id } and returns { response, recommendations }. You can already explore the demo cards and test local favorites, watchlist, and reviews.";
+    } else {
+      const result=await request(API.chat,{method:"POST",body:JSON.stringify({message:text,conversation_id:state.currentConversationId || null})});
+      answer=result.response ?? result.answer ?? result.message ?? "I received a response, but it did not contain a response/answer field.";
+      movies=(result.recommendations ?? result.movies ?? []).map(normalizeMovie);
+      if (result.conversation_id) state.currentConversationId=result.conversation_id;
+    }
+  } catch(e) { answer=`I couldn't reach the chat backend (${e.message}). Check API_BASE, your server status, and the /chat response format.`; }
+  $("#thinking")?.remove();addAssistantMessage(answer,movies);
+  state.history.unshift({title:text.slice(0,42),message:text,created_at:new Date().toISOString()});
+  saveLocal();state.busy=false;$("#statusText").textContent="Ready when you are";
+}
+function renderPageShell(title, subtitle="") {
+  $("#welcome").classList.add("hidden");$("#chatPanel").classList.add("hidden");
+  $("#detailPanel").classList.add("hidden");
+  let page=$("#pagePanel");
+  if(!page){page=document.createElement("section");page.id="pagePanel";page.className="page-panel";$("#mainContent").appendChild(page);}
+  page.classList.remove("hidden");page.innerHTML=`<h1>${safeText(title)}</h1><p class="page-intro">${safeText(subtitle)}</p><div id="pageBody"></div>`;
+  return $("#pageBody");
+}
+async function loadRemoteLibrary(kind) {
+  if(!API_BASE)return;
+  try {
+    const path=kind==="favorites"?API.favorites:kind==="watching"?API.watching:API.reviews;
+    const data=await request(path);
+    const items=Array.isArray(data)?data:(data?.items ?? data?.results ?? []);
+    state[kind]=items.map(normalizeMovie);
+    saveLocal();
+  } catch(e) { toast(`Couldn't load ${kind} from backend: ${e.message}`); }
+}
+async function renderCurrentPage() {
+  $$(".nav button").forEach(b=>b.classList.toggle("active",b.dataset.page===state.page));
+  $("#sidebar").classList.remove("open");
+  if(state.page==="chat") {
+    $("#welcome").classList.remove("hidden");$("#chatPanel").classList.remove("hidden");$("#detailPanel").classList.remove("hidden");$("#pagePanel")?.classList.add("hidden");return;
+  }
+  const titles={discover:["Discover Movies","Search TMDB titles and find your next watch."],favorites:["Your Favorites","The titles you've saved for later."],watching:["My Watching List","Keep your current and upcoming watches together."],reviews:["My Reviews","Your personal ratings and thoughts."],history:["Chat History","Pick up where a previous movie conversation left off."],settings:["Settings","Configure your Cinephile experience."]};
+  const [title,sub]=titles[state.page];const body=renderPageShell(title,sub);
+  if(state.page==="favorites"||state.page==="watching") {
+    if(API_BASE) await loadRemoteLibrary(state.page);
+    const list=state[state.page];
+    body.innerHTML=list.length?`<div class="page-grid">${list.map(m=>movieCard(m)).join("")}</div>`:'<div class="empty">Nothing here yet. Explore movies and save the ones you like.</div>';
+  } else if(state.page==="discover") {
+    body.innerHTML=`<form class="search-row" id="searchForm"><input class="search-input" id="searchQuery" placeholder="Search movies or TV shows…" aria-label="Search titles"><button class="primary-btn" style="width:auto;margin:0" type="submit">Search</button></form><p class="notice">Searches use your backend when configured. Demo titles are shown below.</p><div class="page-grid" id="discoverGrid">${[...DEMO_MOVIES,...state.searchResults].map(m=>movieCard(m)).join("")}</div>`;
+    $("#searchForm").addEventListener("submit",async e=>{
+      e.preventDefault();const q=$("#searchQuery").value.trim();if(!q)return;
+      const grid=$("#discoverGrid");grid.innerHTML='<div class="empty">Searching…</div>';
+      try {
+        if(!API_BASE) throw new Error("Backend URL is not configured");
+        const result=await request(API.search,{method:"POST",body:JSON.stringify({query:q})});
+        state.searchResults=(result.results??result.items??result??[]).map(normalizeMovie);
+        grid.innerHTML=state.searchResults.length?state.searchResults.map(m=>movieCard(m)).join(""):'<div class="empty">No titles found.</div>';
+      } catch(err) {
+        const found=DEMO_MOVIES.filter(m=>m.title.toLowerCase().includes(q.toLowerCase()));
+        grid.innerHTML=found.length?found.map(m=>movieCard(m)).join(""):`<div class="empty">Search requires a configured backend. ${safeText(err.message)}. Try a demo title such as Dark or Severance.</div>`;
+      }
+    });
+  } else if(state.page==="reviews") {
+    if(API_BASE) { try { const data=await request(API.reviews);state.reviews=Array.isArray(data)?data:(data?.items??[]); } catch(e){toast("Couldn't load reviews: "+e.message);} }
+    body.innerHTML=state.reviews.length?`<div class="page-grid">${state.reviews.map(r=>`<article class="movie-card"><h3>${safeText(r.title||r.name||"Movie review")}</h3><div class="rating">★ ${safeText(r.rating)}/10</div><p class="overview">${safeText(r.comment||"No written review.")}</p><div class="meta">${safeText((r.created_at||"").slice(0,10))}</div></article>`).join("")}</div>`:'<div class="empty">No reviews yet. Open a title and write your first review.</div>';
+    body.innerHTML+=`<button class="primary-btn" id="writeReviewBtn" style="max-width:200px">＋ Write a review</button>`;
+    $("#writeReviewBtn").onclick=()=>openReviewModal(state.selected);
+  } else if(state.page==="history") {
+    body.innerHTML=state.history.length?state.history.map((h,i)=>`<button class="secondary-btn history-item" data-history="${i}" style="text-align:left">${safeText(h.title||h.message)} <span class="meta"> · ${safeText((h.created_at||"").slice(0,16).replace("T"," "))}</span></button>`).join(""):'<div class="empty">Your recent chats will appear here as you talk with Cinephile.</div>';
+  } else if(state.page==="settings") {
+    body.innerHTML=`<h3>Backend connection</h3><p class="notice">Set API_BASE near the top of this file to your LangGraph HTTP server URL.</p><p><label for="apiBaseInput">Backend base URL</label><input class="search-input" id="apiBaseInput" value="${safeText(API_BASE)}" placeholder="http://127.0.0.1:8000"></p><button class="primary-btn" style="max-width:220px" id="saveApiBtn">Test connection</button><p class="notice">Expected endpoints: POST /chat, POST /search, GET/POST /favorites, GET/POST /watching, GET/POST /reviews, GET /history.</p><button class="secondary-btn" style="max-width:220px" id="clearLocalBtn">Clear local demo data</button>`;
+    $("#saveApiBtn").onclick=async()=>{const val=$("#apiBaseInput").value.trim().replace(/\/+$/,"");if(!val){toast("Enter a backend URL.");return;}toast("Edit API_BASE in the file to persist this setting.");try{const r=await fetch(val+"/health");if(r.ok)toast("Backend health endpoint responded.");else toast(`Health endpoint returned ${r.status}.`);}catch(e){toast("Could not connect. Check the URL, server, and CORS settings.");}};
+    $("#clearLocalBtn").onclick=()=>{if(confirm("Clear locally stored favorites, watchlist, reviews, and chat history?")){state.favorites=[];state.watching=[];state.reviews=[];state.history=[];saveLocal();renderCurrentPage();toast("Local demo data cleared.");}};
+  }
+}
+function openReviewModal(movie) {
+  const m=normalizeMovie(movie||state.selected);
+  $("#modalRoot").innerHTML=`<div class="modal-backdrop" id="modalBackdrop"><section class="modal" role="dialog" aria-modal="true" aria-labelledby="reviewHeading"><div class="modal-head"><h2 id="reviewHeading">Review ${safeText(m.title)}</h2><button class="icon-btn" id="closeModal" aria-label="Close">✕</button></div><form id="reviewForm"><label for="reviewRating">Your rating (0–10)</label><input id="reviewRating" type="number" min="0" max="10" step="0.5" value="8" required><label for="reviewComment">Your thoughts</label><textarea id="reviewComment" rows="4" placeholder="What did you think of it?" required></textarea><button class="primary-btn" type="submit">Save review</button></form></section></div>`;
+  $("#closeModal").onclick=()=>$("#modalRoot").innerHTML="";
+  $("#modalBackdrop").addEventListener("click",e=>{if(e.target.id==="modalBackdrop")$("#modalRoot").innerHTML="";});
+  $("#reviewForm").onsubmit=async e=>{
+    e.preventDefault();const rating=Number($("#reviewRating").value),comment=$("#reviewComment").value.trim();
+    if(rating<0||rating>10||!comment){toast("Enter a rating from 0 to 10 and a review.");return;}
+    const review={tmdb_id:m.tmdb_id??m.id,show_id:m.tmdb_id??m.id,title:m.title,rating,comment,created_at:new Date().toISOString()};
+    if(API_BASE){try{await request(API.reviews,{method:"POST",body:JSON.stringify(review)});}catch(err){toast("Review not saved: "+err.message);return;}}
+    state.reviews.unshift(review);saveLocal();$("#modalRoot").innerHTML="";toast(API_BASE?"Review saved.":"Review saved locally. Connect the backend to sync.");if(state.page==="reviews")renderCurrentPage();
+  };
+}
+function findMovie(id) { return allKnownMovies().find(m=>String(m.id)===String(id)||String(m.tmdb_id)===String(id)); }
+document.addEventListener("click",async e=>{
+  const nav=e.target.closest("[data-page]");
+  if(nav){state.page=nav.dataset.page;await renderCurrentPage();return;}
+  const chip=e.target.closest("[data-prompt]");
+  if(chip){state.page="chat";await renderCurrentPage();sendMessage(chip.dataset.prompt);return;}
+  const action=e.target.closest("[data-action]");
+  if(action){const m=findMovie(action.dataset.id);if(!m)return;
+    if(action.dataset.action==="favorite")await mutateLibrary("favorite",m);
+    else if(action.dataset.action==="watching")await mutateLibrary("watching",m);
+    else {setDetail(m);state.page="chat";await renderCurrentPage();if(window.innerWidth<1200)$("#detailPanel").scrollIntoView({behavior:"smooth"});}
+    return;
+  }
+  const similar=e.target.closest(".similar-item");
+  if(similar){const m=allKnownMovies().find(x=>x.title===similar.dataset.title);if(m){setDetail(m);sendMessage(`Tell me about ${m.title} and recommend similar titles.`);}return;}
+  const hist=e.target.closest("[data-history]");
+  if(hist){const h=state.history[Number(hist.dataset.history)];if(h){state.page="chat";await renderCurrentPage();sendMessage(h.message);}return;}
+});
+$("#chatForm").addEventListener("submit",e=>{e.preventDefault();sendMessage($("#messageInput").value);});
+$("#messageInput").addEventListener("input",()=>$("#charCount").textContent=$("#messageInput").value.length);
+$("#messageInput").addEventListener("keydown",e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();$("#chatForm").requestSubmit();}});
+$("#menuToggle").addEventListener("click",()=>$("#sidebar").classList.toggle("open"));
+$("#detailFavorite").addEventListener("click",()=>mutateLibrary("favorite",state.selected));
+$("#detailWatching").addEventListener("click",()=>mutateLibrary("watching",state.selected));
+$("#viewSimilar").addEventListener("click",()=>{state.page="discover";renderCurrentPage();});
+$("#searchToggle").addEventListener("click",()=>{state.page="discover";renderCurrentPage();setTimeout(()=>$("#searchQuery")?.focus(),0);});
+$("#uploadBtn").addEventListener("click",()=>$("#fileInput").click());
+$("#fileInput").addEventListener("change",()=>{const f=$("#fileInput").files[0];if(f)toast(`${f.name} selected. Document upload needs a backend endpoint to process it.`);});
+$("#voiceBtn").addEventListener("click",()=>{
+  const SpeechRecognition=window.SpeechRecognition||window.webkitSpeechRecognition;
+  if(!SpeechRecognition){toast("Voice input is not supported by this browser. Try a recent Chrome browser.");return;}
+  const recognition=new SpeechRecognition();recognition.lang="en-US";recognition.interimResults=false;
+  recognition.onresult=e=>{$("#messageInput").value=e.results[0][0].transcript;$("#charCount").textContent=$("#messageInput").value.length;};
+  recognition.onerror=()=>toast("Voice input could not be captured.");recognition.start();toast("Listening… speak now.");
+});
+loadLocal();setDetail(DEMO_MOVIES[0]);updateDetailButtons();
+</script>
+</body>
+</html>

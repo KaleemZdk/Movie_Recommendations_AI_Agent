@@ -28,6 +28,7 @@ from groq import RateLimitError                                      # noqa: E40
 from langchain_core.messages import SystemMessage                    # noqa: E402
 from langchain_groq import ChatGroq                                  # noqa: E402
 from langchain_mcp_adapters.client import MultiServerMCPClient       # noqa: E402
+from langchain_mcp_adapters.tools import load_mcp_tools              # noqa: E402
 from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver         # noqa: E402
 from langgraph.graph import START, MessagesState, StateGraph         # noqa: E402
 from langgraph.prebuilt import ToolNode, tools_condition             # noqa: E402
@@ -131,21 +132,47 @@ _checkpointer: AsyncSqliteSaver | None = None
 _agents: dict[str, object] = {}
 
 
-async def _load_mcp_tools():
-    """Spawn the MCP server over stdio and return its tools."""
+_mcp_task: asyncio.Task | None = None
+_mcp_stop: asyncio.Event | None = None
+
+
+async def _mcp_session_runner(ready: asyncio.Future, stop: asyncio.Event) -> None:
+    """Keep ONE MCP session (and one server process) open for the life of the app.
+
+    Without this, every tool call spawns a fresh server process and re-lists the tools,
+    which is what made each call slow. It runs in its own task so the session is opened
+    and closed in the same task, which the MCP client library requires.
+    """
     client = MultiServerMCPClient(
         {
             "movies": {
                 "command": sys.executable,
                 "args": [str(MCP_SERVER_PATH)],
                 "transport": "stdio",
-                # A stdio server only gets a minimal environment by default, so it would
-                # not see TMDB_API_KEY etc. from your .env. Pass the environment through.
-                "env": dict(os.environ),
+                # No "env" here: tmdb.py loads the project .env itself. Passing your whole
+                # shell environment triggers the "env['PS1'] contains unexpanded variable" warning.
             }
         }
     )
-    return await client.get_tools()
+    try:
+        async with client.session("movies") as session:
+            tools = await load_mcp_tools(session)
+            ready.set_result(tools)
+            await stop.wait()
+    except Exception as e:
+        if not ready.done():
+            ready.set_exception(e)  # startup failure: surface it to build_agent()
+        else:
+            raise
+
+
+async def _load_mcp_tools():
+    """Start the MCP server once and return its tools."""
+    global _mcp_task, _mcp_stop
+    ready: asyncio.Future = asyncio.get_running_loop().create_future()
+    _mcp_stop = asyncio.Event()
+    _mcp_task = asyncio.create_task(_mcp_session_runner(ready, _mcp_stop))
+    return await ready
 
 
 async def _get_checkpointer() -> AsyncSqliteSaver:
@@ -196,8 +223,16 @@ async def build_agent(model_name: str | None = None):
 
 
 async def shutdown() -> None:
-    """Close the checkpoint database (call when your app exits)."""
-    global _checkpointer
+    """Close the MCP server and the checkpoint database (call when your app exits)."""
+    global _checkpointer, _mcp_task, _mcp_stop
+    if _mcp_stop is not None:
+        _mcp_stop.set()
+    if _mcp_task is not None:
+        try:
+            await _mcp_task
+        except Exception:
+            pass
+        _mcp_task = _mcp_stop = None
     if _checkpointer is not None:
         await _checkpointer.conn.close()
         _checkpointer = None
