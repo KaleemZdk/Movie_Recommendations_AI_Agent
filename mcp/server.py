@@ -217,11 +217,7 @@ async def list_genres() -> str:
 
     return _dumps({"genres": genres})
 
-
-# =========================================================================== #
 # LOCAL DB — FAVORITES
-# =========================================================================== #
-
 @mcp.tool()
 def add_favorite(tmdb_id: int, title: str) -> str:
     """Save a movie to the user's favorites list.
@@ -258,11 +254,7 @@ def remove_favorite(tmdb_id: int) -> str:
     removed = database.remove_favorite(tmdb_id)
     return _dumps({"success": removed, "tmdb_id": tmdb_id})
 
-
-# =========================================================================== #
 # LOCAL DB — WATCHING
-# =========================================================================== #
-
 @mcp.tool()
 def set_watching(tmdb_id: int, title: str) -> str:
     """Mark a movie as 'currently watching'.
@@ -300,10 +292,7 @@ def remove_watching(tmdb_id: int) -> str:
     return _dumps({"success": removed, "tmdb_id": tmdb_id})
 
 
-# =========================================================================== #
 # LOCAL DB — REVIEWS
-# =========================================================================== #
-
 @mcp.tool()
 def save_review(tmdb_id: int, rating: float, comment: str = "") -> str:
     """Save or update a review for a movie (rating must be 0–10).
@@ -341,10 +330,7 @@ def list_reviews() -> str:
     return _dumps({"count": len(reviews), "reviews": reviews})
 
 
-# =========================================================================== #
 # AGGREGATE / PERSONALIZATION
-# =========================================================================== #
-
 @mcp.tool()
 def get_user_profile() -> str:
     """Return the user's full saved state: favorites, watching, and reviews.
@@ -446,11 +432,7 @@ async def recommend_for_user(limit: int = 10) -> str:
         }
     )
 
-
-# =========================================================================== #
 # RESOURCES
-# =========================================================================== #
-
 @mcp.resource("movies://user-profile")
 def user_profile_resource() -> str:
     """The user's saved state (favorites / watching / reviews) as JSON."""
@@ -472,11 +454,7 @@ async def genres_resource() -> str:
         return _dumps({"error": str(e)})
     return _dumps({"genres": genres})
 
-
-# =========================================================================== #
 # PROMPT
-# =========================================================================== #
-
 @mcp.prompt()
 def recommend_prompt(taste: str) -> str:
     """Reusable prompt template for a recommendation turn."""
@@ -491,11 +469,7 @@ def recommend_prompt(taste: str) -> str:
         "a one-sentence spoiler-free pitch, and why it fits their taste."
     )
 
-
-# =========================================================================== #
 # ENTRYPOINT
-# =========================================================================== #
-
 if __name__ == "__main__":
     if "--http" in sys.argv:
         mcp.settings.host = "127.0.0.1"

@@ -13,8 +13,11 @@ langgraph-checkpoint-sqlite==3.1.0
 langchain-chroma==1.1.0
 chromadb==1.5.9
 pypdf==6.12.2
-docx2txt==0.9
+docx2txt==0.9s
 langchain-tavily==0.2.18
 tavily-python==0.7.24
 sqlite3
 langchain-groq>=0.2.0
+langchain-mcp-adapters>=0.0.5
+mcp>=1.0.0
+httpx>=0.27.0
